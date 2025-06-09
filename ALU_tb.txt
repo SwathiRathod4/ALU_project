@@ -1,7 +1,7 @@
 `include "alu_final.v"
 `define PASS 1'b1   //new
 `define FAIL 1'b0
-`define no_of_testcase 90
+`define no_of_testcase 110
 
 module alu_final_tb1();
 //parameter PASS=1;
