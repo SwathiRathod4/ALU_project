@@ -1,0 +1,338 @@
+module alu_final(CLK,RST,INP_VALID,MODE,CMD,CE,OPA,OPB,CIN,ERR,RES,OFLOW,COUT,G,L,E);
+parameter width=8;
+parameter cwidth=4;
+input CLK,RST,MODE,CE,CIN;
+input [width-1:0] OPA,OPB;
+input [cwidth-1:0]CMD;
+input [1:0]INP_VALID;
+output reg [width*2:0] RES='bz;
+output reg COUT=1'bz;
+output reg OFLOW=1'bz;
+output reg G=1'bz;
+output reg E=1'bz;
+output reg L=1'bz;
+output reg ERR=1'bz;
+
+reg [width-1:0] OPA_temp,OPB_temp;
+reg MODE_temp,CE_temp,CIN_temp;
+reg [1:0]INP_VALID_temp;
+reg [cwidth-1:0]CMD_temp;
+wire [width-1:0]OPA_1=OPA;
+wire [width-1:0]OPB_1=OPB;
+reg [width-1:0] OPA_2=1'b0;
+reg [width-1:0] OPB_2=1'b0;
+
+
+reg signed [width*2:0]S_RES;
+wire signed [width-1:0]S_OPA=OPA;
+wire signed [width-1:0]S_OPB=OPB;
+
+always@(posedge CLK or posedge RST)
+if(RST) //all
+      begin
+
+      OPA_2=1'b0;
+      OPA_2=1'b0;
+      OPA_temp<=0;
+      OPB_temp<=0;
+      MODE_temp<=1'b0;
+      CE_temp<=0;
+      CIN_temp<=0;
+      INP_VALID_temp<=0;
+      CMD_temp<=0;
+      end
+else
+      begin
+      if(CMD_temp == 4'b1011 || CMD_temp == 4'b1100)
+      begin
+      OPA_temp<=S_OPA;
+      OPB_temp<=S_OPB;
+      end
+      else begin
+      OPA_temp<=OPA;
+      OPB_temp<=OPB;
+      MODE_temp<=MODE;
+      CE_temp<=CE;
+      CIN_temp<=CIN;
+      INP_VALID_temp<=INP_VALID;
+      CMD_temp<=CMD;
+      end
+      end
+
+always@(posedge CLK or posedge RST)
+if(RST) //all
+      begin
+      RES='b0;//{(width+1){1'b0}};
+      COUT=1'b0;
+      OFLOW=1'b0;
+      G=1'b0;
+      E=1'b0;
+      L=1'b0;
+      ERR=1'b0;
+      S_RES='b0;
+      end
+else if(CE)
+        begin
+
+        if(MODE_temp)
+        begin
+        RES='b0;//{(width+1){1'b0}};
+        COUT=1'b0;
+        OFLOW=1'b0;
+        G=1'b0;
+        E=1'b0;
+        L=1'b0;
+        ERR=1'b0;
+        S_RES='b0;
+        if(INP_VALID_temp==2'b11)
+        begin
+        case(CMD_temp)
+        4'b0000:begin
+                RES=OPA_temp+OPB_temp;
+                COUT=RES[width]?1:0;
+                end
+        4'b0001:begin
+                OFLOW=(OPA_temp<OPB_temp)?1:0;
+                RES=OPA_temp-OPB_temp;
+                end
+        4'b0010:begin
+                RES=OPA_temp+OPB_temp+CIN_temp;
+                COUT=RES[width]?1:0;
+                end
+        4'b0011:begin
+                OFLOW=(OPA_temp<OPB_temp)?1:0;
+                RES=OPA_temp-OPB_temp-CIN_temp;
+                end
+        4'b1000:begin
+                RES='b0;//{(width+1){1'b0}};
+                E=1'b0;
+                G=1'b0;
+                L=1'b0;
+                if(OPA_temp==OPB_temp)begin
+                E=1'b1;
+                G=1'b0;
+                L=1'b0;
+                end
+                else if(OPA_temp>OPB_temp)begin
+                E=1'b0;
+                G=1'b1;
+                L=1'b0;
+                end
+                else if(OPA_temp<OPB_temp)begin
+                E=1'b0;
+                G=1'b0;
+                L=1'b1;end
+                end
+        4'b1001:RES=(OPA_temp+1)*(OPB_temp+1);
+        4'b1010:RES=(OPA_temp<<1)*(OPB_temp);
+        4'b1011:begin
+                S_RES=OPA_temp+OPB_temp;
+                RES=S_RES[width-1:0];
+                OFLOW = (~OPA_temp[width-1] & ~OPB_temp[width-1] & S_RES[width-1]) |(OPA_temp[width-1] & OPB_temp[width-1] & ~S_RES[width-1]);
+                COUT = S_RES[width];
+                E = (OPA_temp == OPB_temp);
+                G = (OPA_temp > OPB_temp);
+                L = (OPA_temp < OPB_temp);
+
+                end
+       4'b1100:begin
+                S_RES=OPA_temp-OPB_temp;
+                RES=S_RES[width-1:0];
+                OFLOW = (~OPA_temp[width-1] & ~OPB_temp[width-1] & S_RES[width-1]) |(OPA_temp[width-1] & OPB_temp[width-1] & ~S_RES[width-1]);
+                COUT = S_RES[width];
+                E = (OPA_temp == OPB_temp);
+                G = (OPA_temp > OPB_temp);
+                L = (OPA_temp < OPB_temp);
+                end
+
+
+        default:begin
+        RES='b0;//{(width+1){1'bz}};
+        COUT=1'b0;
+        OFLOW=1'b0;
+        G=1'b0;
+        E=1'b0;
+        L=1'b0;
+        ERR=1'b0;
+        end
+        endcase
+
+        end
+
+
+        else if(INP_VALID_temp==2'b01)
+        begin
+        case(CMD_temp)
+        4'b0100:begin
+                RES=OPA_temp+1;
+                if(RES[width]==1'b1)
+                OFLOW=1'b1;
+                end
+        4'b0101:begin
+                RES=OPA_temp-1;
+                if(RES[width]==1'b1)
+                OFLOW=1'b1;
+                end
+        default:begin
+        RES='b0;//{(width+1){1'b0}};
+        COUT=1'b0;
+        OFLOW=1'b0;
+        G=1'b0;
+        E=1'b0;
+        L=1'b0;
+        end
+        endcase
+        end
+
+        else if(INP_VALID_temp==2'b10)
+        begin
+        case(CMD_temp)
+        4'b0110:begin
+                RES=OPB_temp+1;
+                if(RES[width]==1'b1)
+                OFLOW=1'b1;
+                end
+        4'b0111:begin
+                RES=OPB_temp-1;
+                if(RES[width]==1'b1)
+                OFLOW=1'b1;
+                end
+        default:begin
+        RES='b0;//{(width+1){1'b0}};
+        COUT=1'b0;
+        OFLOW=1'b0;
+        G=1'b0;
+        E=1'b0;
+        L=1'b0;
+        ERR=1'b0;
+        end
+        endcase
+        end
+
+        else
+        begin
+        RES='b0;//{(width+1){1'b0}};
+        COUT=1'b0;
+        OFLOW=1'b0;
+        G=1'b0;
+        E=1'b0;
+        L=1'b0;
+        ERR=1'b0;
+        end
+
+        end
+
+
+        else    //mode=0
+        begin
+        RES='b0;//{(width+1){1'b0}};
+        COUT=1'b0;
+        OFLOW=1'b0;
+        G=1'b0;
+        E=1'b0;
+        L=1'b0;
+        ERR=1'b0;
+
+        if(INP_VALID_temp==2'b11)
+        begin
+        case(CMD_temp)
+        4'b0000:RES={{width+1{1'b0}},OPA_temp&OPB_temp};
+        4'b0001:RES={{width+1{1'b0}},~(OPA_temp&OPB_temp)};
+        4'b0010:RES={{width+1{1'b0}},(OPA_temp|OPB_temp)};
+        4'b0011:RES={{width+1{1'b0}},~(OPA_temp|OPB_temp)};
+        4'b0100:RES={{width+1{1'b0}},OPA_temp^OPB_temp};
+        4'b0101:RES={{width+1{1'b0}},~(OPA_temp^OPB_temp)};
+        4'b1100:begin
+                if(OPB_temp>=width)
+               begin
+               ERR=1'b1;
+               RES=1'b0;
+               end
+               else begin
+               RES={{width{1'b0}},((OPA_temp<<OPB_temp)|(OPA_temp) >>(width-OPB_temp))};
+               end
+               end
+        4'b1101:begin
+                if(OPB_temp>=width)
+               begin
+               ERR=1'b1;
+               RES=1'b0;
+               end
+               else begin
+               RES={{width*2-(width){1'b0}},((OPA_temp>>OPB_temp)|(OPA_temp) <<(width-OPB_temp))};
+               end
+               end
+
+
+
+
+        default:begin
+        RES='b0;//{(width+1){1'b0}};
+        COUT=1'b0;
+        OFLOW=1'b0;
+        G=1'b0;
+        E=1'b0;
+        L=1'b0;
+        ERR=1'b0;
+        end
+        endcase
+        end
+
+
+        else if(INP_VALID_temp==2'b01)
+        begin
+        RES={(width+1){1'b0}};
+        COUT=1'b0;
+        OFLOW=1'b0;
+        G=1'b0;
+        E=1'b0;
+        L=1'b0;
+        ERR=1'b0;
+
+        case(CMD_temp)
+        4'b0110:RES={{width*2-(width){1'b0}},~OPA_temp};
+        4'b1000:RES={{width*2-(width){1'b0}},OPA_temp>>1};
+        4'b1001:RES={{width*2-(width){1'b0}},OPA_temp<<1};
+        default:begin
+        RES={(width+1){1'b0}};
+        COUT=1'b0;
+        OFLOW=1'b0;
+        G=1'b0;
+        E=1'b0;
+        L=1'b0;
+        end
+        endcase
+        end
+
+        else if(INP_VALID_temp==2'b10)
+        begin
+        case(CMD_temp)
+        4'b0111:RES={{width*2-(width){1'b0}},~OPB_temp};
+        4'b1010:RES={{width*2-(width){1'b0}},OPB_temp>>1};
+        4'b1011:RES={{width*2-(width){1'b0}},OPB_temp<<1};
+        default:begin
+        RES='b0;//{(width+1){1'b0}};
+        COUT=1'b0;
+        OFLOW=1'b0;
+        G=1'b0;
+        E=1'b0;
+        L=1'b0;
+        ERR=1'b0;
+        end
+        endcase
+        end
+
+        else
+        begin
+        RES='b0;//{(width+1){1'b0}};
+        COUT=1'b0;
+        OFLOW=1'b0;
+        G=1'b0;
+        E=1'b0;
+        L=1'b0;
+        ERR=1'b0;
+        end
+
+        end
+end
+endmodule
